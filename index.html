@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <!-- Character encoding and responsive viewport -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO metadata -->
+    <title>Hava Durumu Kartları | Türkiye'nin Anlık Hava Durumu</title>
+    <meta name="description" content="Türkiye'nin şehirlerine ait güncel hava durumu bilgileri ve detaylı tahminler">
+    <meta name="keywords" content="hava durumu, türkiye, şehir, sıcaklık, nem, rüzgar, tahmin">
+    <meta name="author" content="Hava Durumu Kartları">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="public/css/anasayfa.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="public/images/favicon.ico">
+</head>
+<body>
+    <!-- HEADER START -->
+    <header role="banner">
+        <div class="container">
+            <div class="header-container">
+                <div class="logo-section">
+                    <h1><i class="fas fa-cloud-sun"></i> Hava Durumu </h1>
+                    <p class="tagline">Türkiye'nin en güncel hava durumu platformu</p>
+                </div>
+                <div class="search-section">
+                    <div class="search-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="city-search" placeholder="Şehir veya ilçe ara..." aria-label="Şehir arama" autocomplete="off">
+                        <!-- Triggers city search -->
+                        <button class="search-btn" id="search-btn" aria-label="Ara" data-action="search">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <div class="search-suggestions" id="search-suggestions"></div>
+                    </div>
+                    <!-- Uses geolocation to fetch weather -->
+                    <button class="location-btn" id="location-btn" title="Konumumu Kullan" aria-label="Konumumu kullan" data-action="use-location">
+                        <i class="fas fa-location-arrow"></i>
+                    </button>
+                </div>
+                <div class="header-controls">
+                    <!-- Toggles light/dark theme -->
+                    <button class="theme-toggle" id="theme-toggle" aria-label="Tema değiştir" data-action="toggle-theme">
+                        <i class="fas fa-moon"></i>
+                        <span>Karanlık Mod</span>
+                    </button>
+                    <div class="unit-toggle" role="radiogroup" aria-label="Sıcaklık birimi seçimi">
+                        <button class="unit-btn active" data-unit="celsius" aria-checked="true" role="radio">°C</button>
+                        <button class="unit-btn" data-unit="fahrenheit" aria-checked="false" role="radio">°F</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- HEADER END -->
+
+    <!-- MAIN CONTENT START -->
+    <main class="container" role="main">
+        <!-- Loading overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>Hava durumu verileri yükleniyor...</p>
+            </div>
+        </div>
+
+        <!-- WEATHER DASHBOARD START -->
+        <section class="weather-dashboard">
+            <div class="main-weather-card">
+                <div class="weather-header">
+                    <div class="location-info">
+                        <div class="current-location">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span id="current-city" data-city="İstanbul">İstanbul</span>
+                        </div>
+                        <p class="current-time" id="current-time"></p>
+                        <div class="coordinates" id="coordinates" data-lat="41.0082" data-lon="28.9784">41.0082° K, 28.9784° D</div>
+                    </div>
+                    <div class="weather-actions">
+                        <!-- Refreshes weather data -->
+                        <button class="action-btn" id="refresh-btn" title="Yenile" aria-label="Verileri yenile" data-action="refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <!-- Opens share modal -->
+                        <button class="action-btn" id="share-btn" title="Paylaş" aria-label="Hava durumunu paylaş" data-action="open-share-modal">
+                            <i class="fas fa-share-alt"></i>
+                        </button>
+                        <!-- Adds/removes city from favorites -->
+                        <button class="action-btn" id="favorite-btn" title="Favorilere Ekle" aria-label="Favorilere ekle" data-action="toggle-favorite">
+                            <i class="far fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="main-weather-display">
+                    <div class="temperature-section">
+                        <div class="current-temp">
+                            <span class="temp-value" id="main-temp" data-value="22">22</span>
+                            <span class="temp-unit">°C</span>
+                        </div>
+                        <div class="feels-like">
+                            Hissedilen: <span id="feels-like" data-value="25">25°C</span>
+                        </div>
+                        <div class="weather-description" id="weather-desc">
+                            <i class="fas fa-sun weather-desc-icon"></i>
+                            <span data-desc="Açık ve güneşli">Açık ve güneşli</span>
+                        </div>
+                        <div class="temp-range">
+                            <span class="high-temp">En yüksek: <span id="high-temp" data-value="28">28°</span></span>
+                            <span class="low-temp">En düşük: <span id="low-temp" data-value="15">15°</span></span>
+                        </div>
+                    </div>
+                    <div class="weather-visual">
+                        <div class="weather-icon-container">
+                            <img src="https://openweathermap.org/img/wn/01d@4x.png" alt="Hava durumu" class="main-weather-icon" id="main-icon">
+                        </div>
+                    </div>
+                </div>
+                <!-- Weather details grid -->
+                <div class="weather-details-grid">
+                    <!-- Detail card template -->
+                    <div class="detail-card">
+                        <i class="fas fa-tint detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="humidity" data-value="65">65%</span>
+                            <span class="detail-label">Nem Oranı</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i class="fas fa-wind detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="wind-speed" data-value="12">12 km/s</span>
+                            <span class="detail-label">Rüzgar</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i class="fas fa-eye detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="visibility" data-value="10">10 km</span>
+                            <span class="detail-label">Görüş</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i class="fas fa-thermometer-half detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="pressure" data-value="1013">1013 mb</span>
+                            <span class="detail-label">Basınç</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i class="fas fa-sun detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="uv-index" data-value="6">6</span>
+                            <span class="detail-label">UV İndeksi</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <i class="fas fa-lungs detail-icon"></i>
+                        <div class="detail-content">
+                            <span class="detail-value" id="air-quality" data-value="İyi">İyi</span>
+                            <span class="detail-label">Hava Kalitesi</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <aside class="side-panel">
+                <div class="forecast-card">
+                    <div class="card-header">
+                        <h3><span class="icon"><i class="fas fa-clock"></i></span> 24 Saatlik Tahmin</h3>
+                        <!-- Toggles hourly forecast details -->
+                        <button class="expand-btn" data-target="hourly-forecast" aria-label="Saatlik tahmini genişlet" data-action="toggle-forecast">
+                            <i class="fas fa-expand-alt"></i>
+                        </button>
+                    </div>
+                    <div class="hourly-forecast-container" id="hourly-forecast-container">
+                        <div class="hourly-scroll" id="hourly-forecast">
+                            <!-- Hourly forecast item template -->
+                            <div class="hourly-item">
+                                <div class="hourly-time">12:00</div>
+                                <img src="https://openweathermap.org/img/wn/01d.png" alt="Hava durumu" class="hourly-icon">
+                                <div class="hourly-temp">22°C</div>
+                            </div>
+                        </div>
+                        <div class="hourly-details hidden" id="hourly-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Yağış Olasılığı</span>
+                                <span class="detail-value" id="hourly-precipitation" data-value="20">20%</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Rüzgar Yönü</span>
+                                <span class="detail-value" id="hourly-wind-direction" data-value="Kuzey">Kuzey</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sun-moon-card">
+                    <div class="card-header">
+                        <h3><span class="icon"><i class="fas fa-sun"></i></span> Güneş & Ay</h3>
+                    </div>
+                    <div class="sun-moon-info">
+                        <div class="sun-info">
+                            <div class="sun-item">
+                                <i class="fas fa-sunrise"></i>
+                                <div>
+                                    <span class="label">Doğuş</span>
+                                    <span class="time" id="sunrise" data-time="06:24">06:24</span>
+                                </div>
+                            </div>
+                            <div class="sun-item">
+                                <i class="fas fa-sunset"></i>
+                                <div>
+                                    <span class="label">Batış</span>
+                                    <span class="time" id="sunset" data-time="19:47">19:47</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="moon-info">
+                            <div class="moon-phase" id="moon-phase">
+                                <i class="fas fa-moon"></i>
+                                <span data-phase="Yeni Ay">Yeni Ay</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="alerts-card" id="alerts-card">
+                    <div class="card-header">
+                        <h3><span class="icon"><i class="fas fa-exclamation-triangle"></i></span> Uyarılar</h3>
+                    </div>
+                    <div class="alerts-content" id="weather-alerts">
+                        <div class="no-alerts">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Aktif uyarı bulunmuyor</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+        <!-- WEATHER DASHBOARD END -->
+
+        <!-- WEEKLY FORECAST START -->
+        <section class="weekly-forecast">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-calendar-week"></i></span> 7 Günlük Tahmin</h2>
+                <div class="view-toggle" aria-label="Tahmin görünüm seçimi">
+                    <button class="toggle-btn active" data-view="simple" aria-checked="true">Basit</button>
+                    <button class="toggle-btn" data-view="detailed" aria-checked="false">Detaylı</button>
+                </div>
+            </div>
+            <div class="weekly-forecast-container" id="weekly-forecast">
+                <!-- Weekly forecast item template -->
+                <div class="weekly-item simple-view">
+                    <div class="weekly-day">Pazartesi</div>
+                    <img src="https://openweathermap.org/img/wn/01d.png" alt="Hava durumu" class="weekly-icon">
+                    <div class="weekly-temp" data-temp="24">24°C</div>
+                    <div class="weekly-details hidden" data-view="detailed">
+                        <div class="detail-item">
+                            <i class="fas fa-tint"></i>
+                            <span>Nem: 60%</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-wind"></i>
+                            <span>Rüzgar: 10 km/s</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="weekly-item simple-view">
+                    <div class="weekly-day">Salı</div>
+                    <img src="https://openweathermap.org/img/wn/02d.png" alt="Hava durumu" class="weekly-icon">
+                    <div class="weekly-temp" data-temp="23">23°C</div>
+                    <div class="weekly-details hidden" data-view="detailed">
+                        <div class="detail-item">
+                            <i class="fas fa-tint"></i>
+                            <span>Nem: 65%</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-wind"></i>
+                            <span>Rüzgar: 12 km/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- WEEKLY FORECAST END -->
+
+        <!-- POPULAR CITIES START -->
+        <section class="popular-cities">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-city"></i></span> Türkiye'nin 81 İli</h2>
+                <div class="filter-buttons" aria-label="Bölge filtresi">
+                    <button class="filter-btn active" data-filter="all" aria-checked="true">Tümü</button>
+                    <button class="filter-btn" data-filter="marmara" aria-checked="false">Marmara</button>
+                    <button class="filter-btn" data-filter="ege" aria-checked="false">Ege</button>
+                    <button class="filter-btn" data-filter="akdeniz" aria-checked="false">Akdeniz</button>
+                    <button class="filter-btn" data-filter="ic-anadolu" aria-checked="false">İç Anadolu</button>
+                    <button class="filter-btn" data-filter="karadeniz" aria-checked="false">Karadeniz</button>
+                    <button class="filter-btn" data-filter="dogu-anadolu" aria-checked="false">Doğu Anadolu</button>
+                    <button class="filter-btn" data-filter="guneydogu" aria-checked="false">Güneydoğu</button>
+                </div>
+            </div>
+            <div class="cities-grid" id="cities-grid">
+                <!-- City card template - Marmara -->
+                <div class="city-card" data-region="marmara">
+                    <div class="city-header">
+                        <h3 class="city-name">İstanbul</h3>
+                        <div class="city-temp" data-temp="22">22°C</div>
+                    </div>
+                    <div class="city-details">
+                        <div class="city-detail">
+                            <i class="fas fa-tint"></i>
+                            <span>Nem: 65%</span>
+                        </div>
+                        <div class="city-detail">
+                            <i class="fas fa-wind"></i>
+                            <span>Rüzgar: 12 km/s</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- City card template - Ege -->
+                <div class="city-card" data-region="ege">
+                    <div class="city-header">
+                        <h3 class="city-name">İzmir</h3>
+                        <div class="city-temp" data-temp="25">25°C</div>
+                    </div>
+                    <div class="city-details">
+                        <div class="city-detail">
+                            <i class="fas fa-tint"></i>
+                            <span>Nem: 60%</span>
+                        </div>
+                        <div class="city-detail">
+                            <i class="fas fa-wind"></i>
+                            <span>Rüzgar: 10 km/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- POPULAR CITIES END -->
+
+        <!-- WEATHER MAP START -->
+        <section class="weather-map-section">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-map"></i></span> İnteraktif Hava Durumu Haritası</h2>
+                <div class="map-controls" aria-label="Harita katmanı seçimi">
+                    <!-- Updates map layer -->
+                    <button class="map-btn active" data-layer="temperature" aria-checked="true" data-action="change-map-layer">Sıcaklık</button>
+                    <button class="map-btn" data-layer="precipitation" aria-checked="false" data-action="change-map-layer">Yağış</button>
+                    <button class="map-btn" data-layer="wind" aria-checked="false" data-action="change-map-layer">Rüzgar</button>
+                    <button class="map-btn" data-layer="clouds" aria-checked="false" data-action="change-map-layer">Bulutlar</button>
+                </div>
+            </div>
+            <div class="weather-map-container">
+                <div id="weather-map"></div>
+                <div class="map-placeholder" id="weather-map-placeholder">
+                    <div class="map-loading">
+                        <i class="fas fa-map map-icon-placeholder"></i>
+                        <p>Harita yükleniyor...</p>
+                        <small>Bu özellik yakında aktif olacak</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- WEATHER MAP END -->
+
+        <!-- WEATHER CHARTS START -->
+        <section class="weather-charts">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-chart-line"></i></span> Hava Durumu Grafikleri</h2>
+            </div>
+            <div class="charts-grid">
+                <!-- Chart card template -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Sıcaklık Trendi</h3>
+                        <div class="chart-controls" aria-label="Sıcaklık grafiği dönemi">
+                            <!-- Updates chart period -->
+                            <button class="chart-btn active" data-period="7d" aria-checked="true" data-action="update-chart">7G</button>
+                            <button class="chart-btn" data-period="14d" aria-checked="false" data-action="update-chart">14G</button>
+                            <button class="chart-btn" data-period="30d" aria-checked="false" data-action="update-chart">30G</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="temperature-chart"></canvas>
+                        <div class="chart-placeholder">
+                            <i class="fas fa-chart-line chart-icon-placeholder"></i>
+                            <p>Sıcaklık grafiği yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Yağış Miktarı</h3>
+                        <div class="chart-controls" aria-label="Yağış grafiği türü">
+                            <!-- Updates chart type -->
+                            <button class="chart-btn active" data-type="hourly" aria-checked="true" data-action="update-chart">Saatlik</button>
+                            <button class="chart-btn" data-type="daily" aria-checked="false" data-action="update-chart">Günlük</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="precipitation-chart"></canvas>
+                        <div class="chart-placeholder">
+                            <i class="fas fa-cloud-rain chart-icon-placeholder"></i>
+                            <p>Yağış grafiği yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Rüzgar Hızı & Yönü</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="wind-chart"></canvas>
+                        <div class="chart-placeholder">
+                            <i class="fas fa-wind chart-icon-placeholder"></i>
+                            <p>Rüzgar grafiği yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Nem Oranı</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="humidity-chart"></canvas>
+                        <div class="chart-placeholder">
+                            <i class="fas fa-tint chart-icon-placeholder"></i>
+                            <p>Nem grafiği yükleniyor...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- WEATHER CHARTS END -->
+
+        <!-- WEATHER STATISTICS START -->
+        <section class="weather-statistics">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-chart-bar"></i></span> Bu Ay İstatistikleri</h2>
+            </div>
+            <div class="statistics-grid">
+                <!-- Stat card template -->
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-temperature-high"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="month-max-temp" data-value="32">32°C</div>
+                        <div class="stat-label">En Yüksek Sıcaklık</div>
+                        <div class="stat-date">15 Mayıs</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-temperature-low"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="month-min-temp" data-value="8">8°C</div>
+                        <div class="stat-label">En Düşük Sıcaklık</div>
+                        <div class="stat-date">3 Mayıs</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-cloud-rain"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="month-precipitation" data-value="45">45mm</div>
+                        <div class="stat-label">Toplam Yağış</div>
+                        <div class="stat-date">Bu ay</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="sunny-days" data-value="18">18</div>
+                        <div class="stat-label">Güneşli Gün</div>
+                        <div class="stat-date">24 günden</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-wind"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="max-wind" data-value="28">28 km/s</div>
+                        <div class="stat-label">En Yüksek Rüzgar</div>
+                        <div class="stat-date">12 Mayıs</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="avg-humidity" data-value="68">68%</div>
+                        <div class="stat-label">Ortalama Nem</div>
+                        <div class="stat-date">Bu ay</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- WEATHER STATISTICS END -->
+
+        <!-- WEATHER TIPS START -->
+        <section class="weather-tips">
+            <div class="section-header">
+                <h2><span class="icon"><i class="fas fa-lightbulb"></i></span> Bugün İçin Tavsiyeler</h2>
+            </div>
+            <div class="tips-container" id="weather-tips">
+                <!-- Tip card template -->
+                <div class="tip-card">
+                    <i class="fas fa-umbrella"></i>
+                    <p>Yağmur beklenmiyor, şemsiye almanıza gerek yok.</p>
+                </div>
+                <div class="tip-card">
+                    <i class="fas fa-tshirt"></i>
+                    <p>Hafif kıyafetler tercih edin, hava sıcak.</p>
+                </div>
+            </div>
+        </section>
+        <!-- WEATHER TIPS END -->
+    </main>
+    <!-- MAIN CONTENT END -->
+
+    <!-- FOOTER START -->
+    <footer role="contentinfo">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Hava Durumu Pro</h3>
+                    <p>Türkiye'nin en kapsamlı ve güncel hava durumu platformu. Meteoroloji verilerini kolay anlaşılır şekilde sunuyoruz.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Hızlı Linkler</h4>
+                    <ul>
+                        <li><a href="#home">Ana Sayfa</a></li>
+                        <li><a href="#forecast">Tahminler</a></li>
+                        <li><a href="#maps">Haritalar</a></li>
+                        <li><a href="#alerts">Uyarılar</a></li>
+                        <li><a href="#api">API</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Bölgeler</h4>
+                    <ul>
+                        <li><a href="#marmara">Marmara</a></li>
+                        <li><a href="#ege">Ege</a></li>
+                        <li><a href="#akdeniz">Akdeniz</a></li>
+                        <li><a href="#karadeniz">Karadeniz</a></li>
+                        <li><a href="#ic-anadolu">İç Anadolu</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>İletişim</h4>
+                    <div class="contact-info">
+                        <p><i class="fas fa-envelope"></i> info@havadurumupro.com</p>
+                        <p><i class="fas fa-phone"></i> +90 212 123 45 67</p>
+                        <p><i class="fas fa-map-marker-alt"></i> İstanbul, Türkiye</p>
+                    </div>
+                    <div class="newsletter-signup">
+                        <h5>Günlük Bülten</h5>
+                        <div class="newsletter-form">
+                            <input type="email" placeholder="E-posta adresiniz" id="newsletter-email" aria-label="E-posta adresi">
+                            <!-- Subscribes to newsletter -->
+                            <button type="button" id="newsletter-subscribe" aria-label="Bültene abone ol" data-action="subscribe-newsletter">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="copyright">
+                    <p>© 2025 Hava Durumu Pro. Tüm hakları saklıdır.</p>
+                    <p>Meteoroloji verileri <a href="https://openweathermap.org" target="_blank" rel="noopener">OpenWeatherMap</a> ve <a href="https://mgm.gov.tr" target="_blank" rel="noopener">MGM</a> kaynaklıdır.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#privacy">Gizlilik Politikası</a>
+                    <a href="#terms">Kullanım Şartları</a>
+                    <a href="#cookies">Çerez Politikası</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- FOOTER END -->
+
+    <!-- SHARE MODAL START -->
+    <div class="modal" id="share-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Hava Durumunu Paylaş</h3>
+                <!-- Closes share modal -->
+                <button class="modal-close" aria-label="Modali kapat" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="share-options">
+                    <!-- Shares on Twitter -->
+                    <button class="share-btn" data-platform="twitter" data-action="share"><i class="fab fa-twitter"></i> Twitter</button>
+                    <!-- Shares on Facebook -->
+                    <button class="share-btn" data-platform="facebook" data-action="share"><i class="fab fa-facebook"></i> Facebook</button>
+                    <!-- Shares on WhatsApp -->
+                    <button class="share-btn" data-platform="whatsapp" data-action="share"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                    <!-- Copies share link -->
+                    <button class="share-btn" data-platform="copy" data-action="copy-link"><i class="fas fa-copy"></i> Linki Kopyala</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- SHARE MODAL END -->
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js" integrity="sha256-FqC1Z2qUFLC5yFBRX1/+gYV0g9+IaV+iB0Vv6+BR7oE=" crossorigin="anonymous"></script>
+    <script>
+        // Basic error handling for script loading
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Script Error:', { msg, url, lineNo, columnNo, error });
+            return false;
+        };
+    </script>
+    <script src="public/js/main.js" defer></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</body>
+</html>
